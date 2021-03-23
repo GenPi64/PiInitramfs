@@ -14,6 +14,9 @@ import os
 import shlex
 import uuid
 
+system("busybox", ["mount", "-t", "proc", "proc", "/proc"])
+system("busybox", ["mount", "-t", "sysfs", "sys", "/sys"])
+
 with open('/proc/cmdline') as cmdline:
     args = shlex.split(cmdline.read())
 
