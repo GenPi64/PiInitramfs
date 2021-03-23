@@ -14,6 +14,11 @@ import os
 import shlex
 import uuid
 
+os.mkdir('/proc')
+os.mkdir('/sys')
+os.mkdir('/dev')
+os.mkdir('/newroot')
+
 system("busybox", ["mount", "-t", "proc", "proc", "/proc"])
 system("busybox", ["mount", "-t", "sysfs", "sys", "/sys"])
 
