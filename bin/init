@@ -1,0 +1,116 @@
+#!/bin/micropython
+import sys
+import os
+import shlex
+import uuid
+
+with open('/proc/cmdline') as cmdline:
+    args = shlex.split(cmdline.read())
+
+boot = '/dev/mmcblk0p1'
+root = '/dev/mmcblk0p2'
+rootfstype = 'btrfs'
+rootflags = 'compress=zstd:3,noatime,subvol=/'
+
+shell = False
+randomizeUUID = False
+_exec = False
+
+for arg in args:
+    if arg.startswith('root='):
+        root=arg.split('=', 1)[1]
+    elif arg.startswith('rootfstype='):
+        rootfstype=arg.split('=', 1)[1]
+    elif arg.startswith('rootflags='):
+        rootflags=arg.split('=', 1)[1]
+    elif arg.startswith('boot='):
+        boot = arg.split('=', 1)[1]
+    elif arg.startswith('exec='):
+        _exec = arg.split('=', 1)[1]
+    elif arg.startswith('randomizeUUID'):
+        if '=' in arg:
+            randomizeUUID = arg.split('=', 1)[1]
+        else:
+            randomizeUUID = uuid.uuid1()
+    elif arg=='shell':
+        shell = 'preroot'
+    elif arg.startswith('shell='):
+        shell = arg.split('=', 1)[1]
+    
+    
+
+def onError(msg, canRetry=True):
+    while True:
+        print(msg)
+        if canRetry:
+            prompt = '(R)etry, '
+        else:
+            prompt = ''
+        action = input(prompt + "(S)hell, or (E)xec")
+        if action.lower.startswith('r') and canRetry:
+            return True
+        if action.lower.startswith('s'):
+            return not os.system('busybox sh')
+        if action.lower.startswith('e'):
+            os.execvp('/bin/busybox', ['/bin/busybox', 'sh'])
+
+def mount(path, device, type, flags):
+    return os.system("mount '%s' -t '%s' -o '%s' '%s'" (device, type, flags, path))
+
+            
+print("In Mount Udev")
+if shell == "udev":
+    os.system('busybox sh')
+
+if exec == 'udev':
+    os.execvp('busybox', ['busybox', 'sh'])
+    
+os.system('busybox mount udev -t devtmpfs /dev')
+            
+print("In Pre Root")
+if shell == "preroot":
+    os.system('busybox sh')
+
+if exec == 'preroot':
+    os.execvp('busybox', ['busybox', 'sh'])
+    
+if root.startswith('UUID='):
+    root = root.split('=', 1)[1]
+    roottype = 'UUID'
+    rootdev = '/dev/disk/by-uuid/' + root
+elif root.startswith('/dev'):
+    roottype = 'dev'
+    rootdev = root
+elif root.startswith('PARTUUID'):
+    root = root.split('=', 1)[1]
+    roottype = 'PARTUUID'
+    rootdev = '/dev/disk/by-partuuid/' + root
+    
+if randomizeUUID:
+    print("Randomizing UUID")
+    os.system('btrfstune -M %s %s' %(randomizeUUID, rootdev)) and onError("Randomizing uuid on %s failed" %(root,), False)
+
+print("Mounting Root")
+mount("/newroot" rootdev, rootfstype, rootflags) and onError("Failed to mount root device")
+
+if randomizeUUID:
+    print("Rewriting cmdline for new UUID")
+    mount("/newroot/boot", boot, "vfat", "") and onError("Failed to mount boot device")
+    _args = args[:]
+    if roottype == 'UUID':
+        _args = [(a if not a.startswith('root=') else 'root=UUID='+randomizeUUID) for a in _args]
+    cmdline = str.join(' ', [a for a in _args if not 'randomizeUUID' in a])
+    with open('/newroot/boot/cmdline.txt', 'w') as f:
+        f.write(cmdline+'\n')
+
+    os.system('umount /newroot/boot')
+
+    
+if shell == 'switchroot':
+    os.system('busybox sh')
+
+if exec == 'switchroot':
+    os.execvp('busybox', ['busybox', 'sh'])
+
+print("Switching Root")
+os.execvp('buxybox', ['busybox', 'switchroot', '/newroot']) and onError("Failed to switchroot", False)

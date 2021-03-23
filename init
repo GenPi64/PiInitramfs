@@ -1,0 +1,2 @@
+#!/bin/busybox sh
+PATH=/bin LD_LIBRARY=/lib PYTHONPATH=/lib/python exec /bin/micropython /bin/init
