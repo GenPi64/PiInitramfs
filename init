@@ -1,2 +1,5 @@
 #!/bin/busybox sh
-PATH=/bin LD_LIBRARY=/lib PYTHONPATH=/lib/python exec /bin/micropython /bin/init
+export PATH=/bin
+export LD_LIBRARY=/lib
+export PYTHONPATH=/lib/python
+exec /bin/micropython /bin/init
