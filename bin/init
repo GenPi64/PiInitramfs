@@ -139,7 +139,7 @@ try:
       os.execvp('busybox', ['busybox', 'sh'])
 
   print("Switching Root")
-  os.execvp('buxybox', ['busybox', 'switchroot', '/newroot', '/init']) and onError("Failed to switchroot", False)
+  os.execvp('buxybox', ['busybox', 'switchroot', '/newroot', init]) and onError("Failed to switchroot", False)
 
 except Exception as e:
   print("Unhandled exception:", e)
