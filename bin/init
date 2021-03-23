@@ -33,6 +33,7 @@ try:
   root = '/dev/mmcblk0p2'
   rootfstype = 'btrfs'
   rootflags = 'compress=zstd:3,noatime,subvol=/'
+  init = '/init'
 
   shell = False
   randomizeUUID = False
@@ -49,6 +50,8 @@ try:
           boot = arg.split('=', 1)[1]
       elif arg.startswith('exec='):
           _exec = arg.split('=', 1)[1]
+      elif arg.startswith('init='):
+        init = arg.split('=', 1)[1]
       elif arg.startswith('randomizeUUID'):
           if '=' in arg:
               randomizeUUID = arg.split('=', 1)[1]
@@ -113,7 +116,7 @@ try:
       system('btrfstune', ['-M', randomizeUUID, rootdev]) and onError("Randomizing uuid on %s failed" %(root,), False)
 
   print("Mounting Root")
-  while not os.path.exists('/newroot/init'):
+  while not os.path.exists('/newroot/'+init):
     mount("/newroot", rootdev, rootfstype, rootflags) and onError("Failed to mount root device, please retry or manually mount the root device on /newroot")
 
   if randomizeUUID:
