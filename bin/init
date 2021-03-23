@@ -14,10 +14,10 @@ import os
 import shlex
 import uuid
 
-os.mkdir('/proc')
-os.mkdir('/sys')
-os.mkdir('/dev')
-os.mkdir('/newroot')
+for d in ['/proc', '/sys', '/newroot', '/dev']:
+  if not os.path.exists(d):
+    os.mkdir(d)
+
 
 system("busybox", ["mount", "-t", "proc", "proc", "/proc"])
 system("busybox", ["mount", "-t", "sysfs", "sys", "/sys"])
