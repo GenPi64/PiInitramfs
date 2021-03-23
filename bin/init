@@ -91,7 +91,7 @@ if randomizeUUID:
     os.system('btrfstune -M %s %s' %(randomizeUUID, rootdev)) and onError("Randomizing uuid on %s failed" %(root,), False)
 
 print("Mounting Root")
-mount("/newroot" rootdev, rootfstype, rootflags) and onError("Failed to mount root device")
+mount("/newroot", rootdev, rootfstype, rootflags) and onError("Failed to mount root device")
 
 if randomizeUUID:
     print("Rewriting cmdline for new UUID")
