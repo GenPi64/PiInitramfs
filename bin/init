@@ -1,5 +1,9 @@
 #!/bin/micropython
 import sys
+sys.maxsize = 2**64
+sys.platform = 'linux'
+
+
 import os
 import shlex
 import uuid
