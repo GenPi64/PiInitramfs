@@ -15,7 +15,6 @@ import os.path
 try:
 
   import shlex
-  import uuid
 
   for d in ['/proc', '/sys', '/newroot', '/dev']:
     if not os.path.exists(d):
@@ -56,7 +55,7 @@ try:
       if '=' in arg:
         randomizeUUID = arg.split('=', 1)[1]
       else:
-        randomizeUUID = uuid.uuid1()
+        randomizeUUID = True
     elif arg=='shell':
       shell = 'preroot'
     elif arg.startswith('shell='):
@@ -116,7 +115,10 @@ try:
 
   if randomizeUUID:
     print("Randomizing UUID")
-    system('btrfstune', ['-M', randomizeUUID, rootdev]) and onError("Randomizing uuid on %s failed" %(root,), False)
+    if randomizeUUID is True:
+      system('btrfstune', ['-m', rootdev]) and onError("Randomizing uuid on %s failed" %(root,), False)
+    else:
+      system('btrfstune', ['-M', randomizeUUID, rootdev]) and onError("Randomizing uuid on %s failed" %(root,), False)
 
   if rootwait:
     print("Waiting on Root")
