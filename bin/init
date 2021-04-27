@@ -11,6 +11,29 @@ def system(cmd, args):
 
 import os
 import os.path
+import popen
+
+def findRoot():
+  global rootwait
+  if roottype == "UUID" or roottype == "PARTUUID":
+    while rootwait:
+      p = popen.Popen(['busybox', 'blkid'])
+      p.wait()
+      devices = os.read(p.stdout, 16*1024).decode('utf-8')
+      for dev in devices.split('\n'):
+        if f'{roottype}="{root}"' in dev:
+          return dev.split(": ", 1)[0]
+      rootwait -= 1
+      print("Waiting on root")
+      time.sleep(1)
+  if roottype == "dev":
+    while rootwait:
+      if os.path.exists(root):
+        return root
+      rootwait -= 1
+      print("Waiting on root")
+      time.sleep(1)
+
 
 try:
 
@@ -104,15 +127,15 @@ try:
   if root.startswith('UUID='):
     root = root.split('=', 1)[1]
     roottype = 'UUID'
-    rootdev = '/dev/disk/by-uuid/' + root
   elif root.startswith('/dev'):
     roottype = 'dev'
     rootdev = root
   elif root.startswith('PARTUUID'):
     root = root.split('=', 1)[1]
     roottype = 'PARTUUID'
-    rootdev = '/dev/disk/by-partuuid/' + root
 
+  rootdev = findRoot()
+    
   if randomizeUUID:
     print("Randomizing UUID")
     if randomizeUUID is True:
@@ -120,11 +143,6 @@ try:
     else:
       system('btrfstune', ['-M', randomizeUUID, rootdev]) and onError("Randomizing uuid on %s failed" %(root,), False)
 
-  if rootwait:
-    print("Waiting on Root")
-    while not os.path.exists(rootdev) and rootwait > 0:
-      time.sleep(1)
-      rootwait -= 1
     
   print("Mounting Root")
   while not os.path.exists('/newroot/'+init):
