@@ -1,7 +1,7 @@
 import os
 
 class Popen:
-    def __init__(self, cmd, stdin=None, stdout=None, stderr=None):
+    def __init__(self, cmd, stdin=None, stdout=None, stderr=None, closeFDs=True):
         if stdin is None:
             stdin, self.stdin = os.pipe()
             self.stdin = open(self.stdin, 'wb')
@@ -13,7 +13,10 @@ class Popen:
             self.stderr = open(self.stderr, 'rb')
             
         self.child = os.fork()
-        if self.child:
+        if self.child and closeFDs:
+            os.close(stdin)
+            os.close(stdout)
+            os.close(stderr)
             return
         os.close(0)
         os.close(1)
