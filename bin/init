@@ -11,15 +11,13 @@ def system(cmd, args):
 
 import os
 import os.path
-import popen
 
 def findRoot():
+  print("Looking for root device:", root)
   global rootwait
   if roottype == "UUID" or roottype == "PARTUUID":
     while rootwait:
-      p = popen.Popen(['busybox', 'blkid'])
-      p.wait()
-      devices = os.read(p.stdout, 16*1024).decode('utf-8')
+      devices = os.popen("/bin/blkid").read()
       for dev in devices.split('\n'):
         if ('%(roottype)s="%(root)s"' % dict(roottype=roottype, root=root)) in dev:
           return dev.split(": ", 1)[0]
@@ -135,7 +133,7 @@ try:
     roottype = 'PARTUUID'
 
   rootdev = findRoot()
-    
+  print("Got Root Device:", rootdev)
   if randomizeUUID:
     print("Randomizing UUID")
     if randomizeUUID is True:

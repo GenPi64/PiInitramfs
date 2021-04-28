@@ -4,10 +4,13 @@ class Popen:
     def __init__(self, cmd, stdin=None, stdout=None, stderr=None):
         if stdin is None:
             stdin, self.stdin = os.pipe()
+            self.stdin = open(self.stdin, 'wb')
         if stdout is None:
             self.stdout, stdout = os.pipe()
+            self.stdout = open(self.stdout, 'rb')
         if stderr is None:
             self.stderr, stderr = os.pipe()
+            self.stderr = open(self.stderr, 'rb')
             
         self.child = os.fork()
         if self.child:
