@@ -21,7 +21,7 @@ def findRoot():
       p = popen.Popen(['/bin/findfs', ('%(roottype)s="%(root)s"' % dict(roottype=roottype, root=root))])
       if p.wait() is 0:
         device = p.stdout.read()
-        return device
+        return device.decode('utf-8').strip()
       print(p.stderr.read())
       rootwait -= 1
       print("Waiting on root...")
@@ -135,6 +135,7 @@ try:
     roottype = 'PARTUUID'
 
   rootdev = findRoot()
+  time.sleep(1)
   print("Got Root Device:", rootdev)
   if randomizeUUID:
     print("Randomizing UUID")
