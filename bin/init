@@ -21,7 +21,7 @@ def findRoot():
       p.wait()
       devices = os.read(p.stdout, 16*1024).decode('utf-8')
       for dev in devices.split('\n'):
-        if f'{roottype}="{root}"' in dev:
+        if ('%(roottype)s="%(root)s"' % dict(roottype=roottype, root=root)) in dev:
           return dev.split(": ", 1)[0]
       rootwait -= 1
       print("Waiting on root")
