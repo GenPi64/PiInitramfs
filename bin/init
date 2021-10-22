@@ -1,176 +1,178 @@
 #!/bin/micropython
 import sys
 import time
-
-def system(cmd, args):
-  c = os.fork()
-  if c:
-    return os.waitpid(c, None)[1]
-  else:
-    os.execvp(cmd, [cmd] + args)
-
 import os
 import os.path
 import popen
 
+
+def system(cmd, args):
+    c = os.fork()
+    if c:
+        return os.waitpid(c, None)[1]
+    else:
+        os.execvp(cmd, [cmd] + args)
+
+
 def findRoot():
-  print("Looking for root device:", root)
-  global rootdelay
-  if roottype != "dev":
-    while rootdelay:
-      p = popen.Popen(['/bin/findfs', ('%(roottype)s="%(root)s"' % dict(roottype=roottype, root=root))])
-      if p.wait() is 0:
-        device = p.stdout.read()
-        return device.decode('utf-8').strip()
-      print(p.stderr.read())
-      rootdelay -= 1
-      print("Waiting on root...")
-      time.sleep(1)
-  else:
-    while rootdelay:
-      if os.path.exists(root):
-        return root
-      rootdelay -= 1
-      print("Waiting on root")
-      time.sleep(1)
-    print("Timed out waiting on root, trying anyway")
+    print("Looking for root device:", root)
+    global rootdelay
+    if roottype != "dev":
+        while rootdelay:
+            p = popen.Popen(['/bin/findfs', ('%(roottype)s="%(root)s"' % dict(roottype=roottype, root=root))])
+            if p.wait() is 0:
+                device = p.stdout.read()
+                return device.decode('utf-8').strip()
+            print(p.stderr.read())
+            rootdelay -= 1
+            print("Waiting on root...")
+            time.sleep(1)
+    else:
+        while rootdelay:
+            if os.path.exists(root):
+                return root
+            rootdelay -= 1
+            print("Waiting on root")
+            time.sleep(1)
+        print("Timed out waiting on root, trying anyway")
+
 
 try:
 
-  import shlex
+    import shlex
 
-  for d in ['/proc', '/sys', '/newroot', '/dev']:
-    if not os.path.exists(d):
-      os.mkdir(d)
+    for d in ['/proc', '/sys', '/newroot', '/dev']:
+        if not os.path.exists(d):
+            os.mkdir(d)
 
+    system("busybox", ["mount", "-t", "proc", "proc", "/proc"])
+    system("busybox", ["mount", "-t", "sysfs", "sys", "/sys"])
 
-  system("busybox", ["mount", "-t", "proc", "proc", "/proc"])
-  system("busybox", ["mount", "-t", "sysfs", "sys", "/sys"])
+    with open('/proc/cmdline') as cmdline:
+        args = shlex.split(cmdline.read())
 
-  with open('/proc/cmdline') as cmdline:
-    args = shlex.split(cmdline.read())
+    boot = '/dev/mmcblk0p1'
+    root = '/dev/mmcblk0p2'
+    rootfstype = 'btrfs'
+    rootflags = 'compress=zstd:3,noatime,subvol=/'
+    init = '/init'
+    rootdelay = False
 
-  boot = '/dev/mmcblk0p1'
-  root = '/dev/mmcblk0p2'
-  rootfstype = 'btrfs'
-  rootflags = 'compress=zstd:3,noatime,subvol=/'
-  init = '/init'
-  rootdelay = False
+    shell = False
+    randomizeUUID = False
+    _exec = False
 
-  shell = False
-  randomizeUUID = False
-  _exec = False
-
-  for arg in args:
-    if arg.startswith('root='):
-      root=arg.split('=', 1)[1]
-    elif arg.startswith('rootfstype='):
-      rootfstype=arg.split('=', 1)[1]
-    elif arg.startswith('rootflags='):
-      rootflags=arg.split('=', 1)[1]
-    elif arg.startswith('boot='):
-      boot = arg.split('=', 1)[1]
-    elif arg.startswith('exec='):
-      _exec = arg.split('=', 1)[1]
-    elif arg.startswith('init='):
-      init = arg.split('=', 1)[1]
-    elif arg.startswith('randomizeUUID'):
-      if '=' in arg:
-        randomizeUUID = arg.split('=', 1)[1]
-      else:
-        randomizeUUID = True
-    elif arg=='shell':
-      shell = 'preroot'
-    elif arg.startswith('shell='):
-      shell = arg.split('=', 1)[1]
-    elif arg.startswith("rootdelay"):
-      rootdelay = 60
-      if '=' in arg:
-        rootdelay = int(arg.split('=', 1)[1])
-
-
-  def onError(msg, canRetry=True):
-    while True:
-      print(msg)
-      if canRetry:
-        prompt = '(R)etry, '
-      else:
-        prompt = ''
-      action = input(prompt + "(S)hell, or (E)xec")
-      if action.lower().startswith('r') and canRetry:
-        return True
-      if action.lower().startswith('s'):
-        return not system('/bin/busybox', ['sh'])
-      if action.lower().startswith('e'):
-        os.execvp('/bin/busybox', ['/bin/busybox', 'sh'])
-
-  def mount(path, device, type, flags):
-     return system("busybox",  ['mount', device, "-t", type, '-o', flags, path])
+    for arg in args:
+        if arg.startswith('root='):
+            root = arg.split('=', 1)[1]
+        elif arg.startswith('rootfstype='):
+            rootfstype = arg.split('=', 1)[1]
+        elif arg.startswith('rootflags='):
+            rootflags = arg.split('=', 1)[1]
+        elif arg.startswith('boot='):
+            boot = arg.split('=', 1)[1]
+        elif arg.startswith('exec='):
+            _exec = arg.split('=', 1)[1]
+        elif arg.startswith('init='):
+            init = arg.split('=', 1)[1]
+        elif arg.startswith('randomizeUUID'):
+            if '=' in arg:
+                randomizeUUID = arg.split('=', 1)[1]
+            else:
+                randomizeUUID = True
+        elif arg == 'shell':
+            shell = 'preroot'
+        elif arg.startswith('shell='):
+            shell = arg.split('=', 1)[1]
+        elif arg.startswith("rootdelay"):
+            rootdelay = 60
+            if '=' in arg:
+                rootdelay = int(arg.split('=', 1)[1])
 
 
-  print("In Mount Udev")
-  if shell == "udev":
-     system('busybox',  ['sh'])
-
-  if exec == 'udev':
-     os.execvp('busybox', ['busybox', 'sh'])
-
-  system('busybox', ['mount', 'udev', '-t', 'devtmpfs', '/dev'])
-
-  print("In Pre Root")
-  if shell == "preroot":
-    system('busybox', ['sh'])
-
-  if exec == 'preroot':
-    os.execvp('busybox', ['busybox', 'sh'])
-
-  if root.startswith('UUID='):
-    root = root.split('=', 1)[1]
-    roottype = 'UUID'
-  elif root.startswith('/dev'):
-    roottype = 'dev'
-    rootdev = root
-  elif root.startswith('PARTUUID'):
-    root = root.split('=', 1)[1]
-    roottype = 'PARTUUID'
-
-  rootdev = findRoot()
-  time.sleep(1)
-  print("Got Root Device:", rootdev)
-  if randomizeUUID:
-    print("Randomizing UUID")
-    if randomizeUUID is True:
-      system('btrfstune', ['-m', rootdev]) and onError("Randomizing uuid on %s failed" %(root,), False)
-    else:
-      system('btrfstune', ['-M', randomizeUUID, rootdev]) and onError("Randomizing uuid on %s failed" %(root,), False)
-
-    
-  print("Mounting Root")
-  while not os.path.exists('/newroot/'+init):
-    mount("/newroot", rootdev, rootfstype, rootflags) and onError("Failed to mount root device, please retry or manually mount the root device on /newroot")
-
-  if randomizeUUID:
-    print("Rewriting cmdline for new UUID")
-    mount("/newroot/boot", boot, "vfat", "") and onError("Failed to mount boot device")
-    _args = args[:]
-    if roottype == 'UUID':
-      _args = [(a if not a.startswith('root=') else 'root=UUID='+randomizeUUID) for a in _args]
-    cmdline = str.join(' ', [a for a in _args if not 'randomizeUUID' in a])
-    with open('/newroot/boot/cmdline.txt', 'w') as f:
-      f.write(cmdline+'\n')
-
-    system('busybox', ['umount', '/newroot/boot'])
+    def onError(msg, canRetry=True):
+        while True:
+            print(msg)
+            if canRetry:
+                prompt = '(R)etry, '
+            else:
+                prompt = ''
+            action = input(prompt + "(S)hell, or (E)xec")
+            if action.lower().startswith('r') and canRetry:
+                return True
+            if action.lower().startswith('s'):
+                return not system('/bin/busybox', ['sh'])
+            if action.lower().startswith('e'):
+                os.execvp('/bin/busybox', ['/bin/busybox', 'sh'])
 
 
-  if shell == 'switchroot':
-    system('busybox', ['sh'])
+    def mount(path, device, type, flags):
+        return system("busybox", ['mount', device, "-t", type, '-o', flags, path])
 
-  if exec == 'switchroot':
-    os.execvp('busybox', ['busybox', 'sh'])
 
-  print("Switching Root")
-  os.execvp('busybox', ['busybox', 'switch_root', '/newroot', init]) and onError("Failed to switchroot", False)
+    print("In Mount Udev")
+    if shell == "udev":
+        system('busybox', ['sh'])
+
+    if exec == 'udev':
+        os.execvp('busybox', ['busybox', 'sh'])
+
+    system('busybox', ['mount', 'udev', '-t', 'devtmpfs', '/dev'])
+
+    print("In Pre Root")
+    if shell == "preroot":
+        system('busybox', ['sh'])
+
+    if exec == 'preroot':
+        os.execvp('busybox', ['busybox', 'sh'])
+
+    if root.startswith('UUID='):
+        root = root.split('=', 1)[1]
+        roottype = 'UUID'
+    elif root.startswith('/dev'):
+        roottype = 'dev'
+        rootdev = root
+    elif root.startswith('PARTUUID'):
+        root = root.split('=', 1)[1]
+        roottype = 'PARTUUID'
+
+    rootdev = findRoot()
+    time.sleep(1)
+    print("Got Root Device:", rootdev)
+    if randomizeUUID:
+        print("Randomizing UUID")
+        if randomizeUUID is True:
+            system('btrfstune', ['-m', rootdev]) and onError("Randomizing uuid on %s failed" % (root,), False)
+        else:
+            system('btrfstune', ['-M', randomizeUUID, rootdev]) and onError("Randomizing uuid on %s failed" % (root,),
+                                                                            False)
+
+    print("Mounting Root")
+    while not os.path.exists('/newroot/' + init):
+        mount("/newroot", rootdev, rootfstype, rootflags) and onError(
+            "Failed to mount root device, please retry or manually mount the root device on /newroot")
+
+    if randomizeUUID:
+        print("Rewriting cmdline for new UUID")
+        mount("/newroot/boot", boot, "vfat", "") and onError("Failed to mount boot device")
+        _args = args[:]
+        if roottype == 'UUID':
+            _args = [(a if not a.startswith('root=') else 'root=UUID=' + randomizeUUID) for a in _args]
+        cmdline = str.join(' ', [a for a in _args if not 'randomizeUUID' in a])
+        with open('/newroot/boot/cmdline.txt', 'w') as f:
+            f.write(cmdline + '\n')
+
+        system('busybox', ['umount', '/newroot/boot'])
+
+    if shell == 'switchroot':
+        system('busybox', ['sh'])
+
+    if exec == 'switchroot':
+        os.execvp('busybox', ['busybox', 'sh'])
+
+    print("Switching Root")
+    os.execvp('busybox', ['busybox', 'switch_root', '/newroot', init]) and onError("Failed to switchroot", False)
 
 except Exception as e:
-  print("Unhandled exception:", e)
-  os.execvp('busybox', ['busybox', 'sh'])
+    print("Unhandled exception:", e)
+    os.execvp('busybox', ['busybox', 'sh'])
