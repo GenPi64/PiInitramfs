@@ -15,22 +15,22 @@ import popen
 
 def findRoot():
   print("Looking for root device:", root)
-  global rootwait
+  global rootdelay
   if roottype != "dev":
-    while rootwait:
+    while rootdelay:
       p = popen.Popen(['/bin/findfs', ('%(roottype)s="%(root)s"' % dict(roottype=roottype, root=root))])
       if p.wait() is 0:
         device = p.stdout.read()
         return device.decode('utf-8').strip()
       print(p.stderr.read())
-      rootwait -= 1
+      rootdelay -= 1
       print("Waiting on root...")
       time.sleep(1)
   else:
-    while rootwait:
+    while rootdelay:
       if os.path.exists(root):
         return root
-      rootwait -= 1
+      rootdelay -= 1
       print("Waiting on root")
       time.sleep(1)
     print("Timed out waiting on root, trying anyway")
@@ -55,7 +55,7 @@ try:
   rootfstype = 'btrfs'
   rootflags = 'compress=zstd:3,noatime,subvol=/'
   init = '/init'
-  rootwait = False
+  rootdelay = False
 
   shell = False
   randomizeUUID = False
@@ -83,10 +83,10 @@ try:
       shell = 'preroot'
     elif arg.startswith('shell='):
       shell = arg.split('=', 1)[1]
-    elif arg.startswith("rootwait"):
-      rootwait = 60
+    elif arg.startswith("rootdelay"):
+      rootdelay = 60
       if '=' in arg:
-        rootwait = int(arg.split('=', 1)[1])
+        rootdelay = int(arg.split('=', 1)[1])
 
 
   def onError(msg, canRetry=True):
